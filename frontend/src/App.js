@@ -75,6 +75,22 @@ export default function App() {
     descripcion: "", tecnico: "", estado: "Recibido", prioridad: "media",
   });
 
+  const [formCliente, setFormCliente] = useState({
+    nombre: "", telefono: "", documento: "", ciudad: "", email: "", tipo: "Normal",
+  });
+
+  const [formDistribuidor, setFormDistribuidor] = useState({
+    razon: "", contacto: "", telefono: "", email: "", ciudad: "", tipo: "Mayorista", compraMinima: 20,
+  });
+
+  const [formGasto, setFormGasto] = useState({
+    fecha: new Date().toISOString().split("T")[0], concepto: "", tipo: "Operativo", monto: 0, metodoPago: "Efectivo", comprobante: "", notas: "",
+  });
+
+  const [formCaja, setFormCaja] = useState({
+    fecha: new Date().toISOString().split("T")[0], apertura: 0, observaciones: "",
+  });
+
   // Cargar datos
   useEffect(() => {
     if (!user) return;
@@ -178,6 +194,73 @@ export default function App() {
       setAlert({ type: "ok", msg: "Campaña eliminada" });
     } catch (err) {
       setAlert({ type: "error", msg: "Error al eliminar: " + err.message });
+    }
+  };
+
+  // Clientes
+  const handleAddCliente = async () => {
+    if (!formCliente.nombre || !formCliente.telefono) {
+      setAlert({ type: "warn", msg: "Nombre y teléfono requeridos" });
+      return;
+    }
+    try {
+      await api.addCliente({
+        ...formCliente,
+        fechaRegistro: new Date().toISOString().split("T")[0],
+      });
+      setFormCliente({ nombre: "", telefono: "", documento: "", ciudad: "", email: "", tipo: "Normal" });
+      setModal(null);
+      loadData();
+      setAlert({ type: "ok", msg: "Cliente registrado" });
+    } catch (err) {
+      setAlert({ type: "error", msg: "Error: " + err.message });
+    }
+  };
+
+  // Distribuidores
+  const handleAddDistribuidor = async () => {
+    if (!formDistribuidor.razon || !formDistribuidor.telefono) {
+      setAlert({ type: "warn", msg: "Razón social y teléfono requeridos" });
+      return;
+    }
+    try {
+      await api.addDistribuidor(formDistribuidor);
+      setFormDistribuidor({ razon: "", contacto: "", telefono: "", email: "", ciudad: "", tipo: "Mayorista", compraMinima: 20 });
+      setModal(null);
+      loadData();
+      setAlert({ type: "ok", msg: "Distribuidor agregado" });
+    } catch (err) {
+      setAlert({ type: "error", msg: "Error: " + err.message });
+    }
+  };
+
+  // Gastos
+  const handleAddGasto = async () => {
+    if (!formGasto.concepto || formGasto.monto <= 0) {
+      setAlert({ type: "warn", msg: "Complete concepto y monto" });
+      return;
+    }
+    try {
+      await api.addGasto(formGasto);
+      setFormGasto({ fecha: new Date().toISOString().split("T")[0], concepto: "", tipo: "Operativo", monto: 0, metodoPago: "Efectivo", comprobante: "", notas: "" });
+      setModal(null);
+      loadData();
+      setAlert({ type: "ok", msg: "Gasto registrado" });
+    } catch (err) {
+      setAlert({ type: "error", msg: "Error: " + err.message });
+    }
+  };
+
+  // Caja
+  const handleRegistrarCaja = async () => {
+    try {
+      const caja = await api.addCaja(formCaja);
+      setFormCaja({ fecha: new Date().toISOString().split("T")[0], apertura: 0, observaciones: "" });
+      setModal(null);
+      loadData();
+      setAlert({ type: "ok", msg: "Cierre de caja registrado" });
+    } catch (err) {
+      setAlert({ type: "error", msg: "Error: " + err.message });
     }
   };
 
@@ -412,6 +495,74 @@ export default function App() {
             </div>
           )}
 
+          {/* Distribuidores */}
+          {tab === "distribuidores" && (
+            <div>
+              <SectionHdr title="🏪 Distribuidores" action={() => setModal("distribuidor")} actionLabel="+ Nuevo Distribuidor" />
+              <Grid cols={2} gap={15}>
+                {distribuidores.map((dist) => (
+                  <Card key={dist.id}>
+                    <h3 style={{ margin: "0 0 12px 0", fontSize: "16px" }}>{dist.razon}</h3>
+                    <p style={{ margin: "4px 0", fontSize: "13px", color: "#666" }}>📱 {dist.telefono}</p>
+                    <p style={{ margin: "4px 0", fontSize: "13px", color: "#666" }}>👤 {dist.contacto}</p>
+                    <p style={{ margin: "4px 0", fontSize: "13px", color: "#666" }}>📍 {dist.ciudad}</p>
+                    <p style={{ margin: "4px 0", fontSize: "13px", color: "#666" }}>💰 Compra Mín: ${dist.compraMinima}</p>
+                    <p style={{ margin: "8px 0 0 0", fontSize: "12px", fontWeight: "600", color: dist.estado === "Activo" ? "#00c853" : "#f97316" }}>Estado: {dist.estado}</p>
+                    <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+                      <Btn small onClick={() => setModal("pedido_" + dist.id)}>+ Pedido</Btn>
+                    </div>
+                    {dist.pedidos && dist.pedidos.length > 0 && (
+                      <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" }}>
+                        <p style={{ fontSize: "12px", fontWeight: "600", marginBottom: "8px" }}>Últimos Pedidos:</p>
+                        {dist.pedidos.slice(0, 3).map(p => (
+                          <div key={p.id} style={{ fontSize: "11px", marginBottom: "4px", padding: "6px", background: "#f9fafb", borderRadius: "4px" }}>
+                            <strong>{p.fecha}</strong> - ${p.total.toLocaleString()} ({p.estado})
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </Grid>
+            </div>
+          )}
+
+          {/* Clientes */}
+          {tab === "clientes" && (
+            <div>
+              <SectionHdr title="👥 Clientes" action={() => setModal("cliente")} actionLabel="+ Nuevo Cliente" />
+              <DataTable
+                data={clientes.map(c => ({
+                  ...c,
+                  nombre: c.nombre,
+                  telefono: c.telefono,
+                  documento: c.documento,
+                  ciudad: c.ciudad,
+                  tipo: c.tipo,
+                }))}
+                columns={["nombre", "telefono", "documento", "ciudad", "tipo"]}
+              />
+            </div>
+          )}
+
+          {/* Caja & Gastos */}
+          {tab === "caja" && (
+            <div>
+              <div style={{ marginBottom: "24px" }}>
+                <SectionHdr title="🏦 Gastos" action={() => setModal("gasto")} actionLabel="+ Nuevo Gasto" />
+                <DataTable
+                  data={(Array.isArray(gastos) ? gastos : []).map(g => ({
+                    fecha: g.fecha,
+                    concepto: g.concepto,
+                    tipo: g.tipo,
+                    monto: `$${g.monto.toLocaleString()}`,
+                  }))}
+                  columns={["fecha", "concepto", "tipo", "monto"]}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Config */}
           {tab === "config" && (
             <div>
@@ -543,6 +694,170 @@ export default function App() {
             onChange={(v) => setFormServicio({ ...formServicio, prioridad: v })}
           />
           <Btn onClick={handleAddServicio}>Registrar Servicio</Btn>
+        </Modal>
+      )}
+
+      {modal === "cliente" && (
+        <Modal title="Nuevo Cliente" onClose={() => setModal(null)}>
+          <Inp
+            label="Nombre *"
+            value={formCliente.nombre}
+            onChange={(v) => setFormCliente({ ...formCliente, nombre: v })}
+            placeholder="Nombre completo"
+          />
+          <Inp
+            label="Teléfono *"
+            value={formCliente.telefono}
+            onChange={(v) => setFormCliente({ ...formCliente, telefono: v })}
+            placeholder="3001234567"
+          />
+          <Inp
+            label="Documento"
+            value={formCliente.documento}
+            onChange={(v) => setFormCliente({ ...formCliente, documento: v })}
+            placeholder="CC o RUC"
+          />
+          <Inp
+            label="Email"
+            value={formCliente.email}
+            onChange={(v) => setFormCliente({ ...formCliente, email: v })}
+            placeholder="correo@ejemplo.com"
+          />
+          <Inp
+            label="Ciudad"
+            value={formCliente.ciudad}
+            onChange={(v) => setFormCliente({ ...formCliente, ciudad: v })}
+            placeholder="Bogotá"
+          />
+          <Sel
+            label="Tipo"
+            value={formCliente.tipo}
+            options={["Normal", "Especial", "VIP"]}
+            onChange={(v) => setFormCliente({ ...formCliente, tipo: v })}
+          />
+          <Btn onClick={handleAddCliente}>✓ Registrar Cliente</Btn>
+        </Modal>
+      )}
+
+      {modal === "distribuidor" && (
+        <Modal title="Nuevo Distribuidor" onClose={() => setModal(null)}>
+          <Inp
+            label="Razón Social *"
+            value={formDistribuidor.razon}
+            onChange={(v) => setFormDistribuidor({ ...formDistribuidor, razon: v })}
+            placeholder="Nombre empresa"
+          />
+          <Inp
+            label="Contacto"
+            value={formDistribuidor.contacto}
+            onChange={(v) => setFormDistribuidor({ ...formDistribuidor, contacto: v })}
+            placeholder="Nombre del contacto"
+          />
+          <Inp
+            label="Teléfono *"
+            value={formDistribuidor.telefono}
+            onChange={(v) => setFormDistribuidor({ ...formDistribuidor, telefono: v })}
+            placeholder="3001234567"
+          />
+          <Inp
+            label="Email"
+            value={formDistribuidor.email}
+            onChange={(v) => setFormDistribuidor({ ...formDistribuidor, email: v })}
+            placeholder="contacto@ejemplo.com"
+          />
+          <Inp
+            label="Ciudad"
+            value={formDistribuidor.ciudad}
+            onChange={(v) => setFormDistribuidor({ ...formDistribuidor, ciudad: v })}
+            placeholder="Bogotá"
+          />
+          <Sel
+            label="Tipo"
+            value={formDistribuidor.tipo}
+            options={["Mayorista", "Distribuidor Regional", "Autorizado"]}
+            onChange={(v) => setFormDistribuidor({ ...formDistribuidor, tipo: v })}
+          />
+          <Inp
+            label="Compra Mínima"
+            value={formDistribuidor.compraMinima}
+            onChange={(v) => setFormDistribuidor({ ...formDistribuidor, compraMinima: parseInt(v) || 0 })}
+            type="number"
+          />
+          <Btn onClick={handleAddDistribuidor}>✓ Agregar Distribuidor</Btn>
+        </Modal>
+      )}
+
+      {modal === "gasto" && (
+        <Modal title="Nuevo Gasto" onClose={() => setModal(null)}>
+          <Inp
+            label="Fecha"
+            value={formGasto.fecha}
+            onChange={(v) => setFormGasto({ ...formGasto, fecha: v })}
+            type="date"
+          />
+          <Inp
+            label="Concepto *"
+            value={formGasto.concepto}
+            onChange={(v) => setFormGasto({ ...formGasto, concepto: v })}
+            placeholder="Ej: Arriendo, Servicios, etc."
+          />
+          <Sel
+            label="Tipo"
+            value={formGasto.tipo}
+            options={["Operativo", "Administrativo", "Mantenimiento", "Otro"]}
+            onChange={(v) => setFormGasto({ ...formGasto, tipo: v })}
+          />
+          <Inp
+            label="Monto *"
+            value={formGasto.monto}
+            onChange={(v) => setFormGasto({ ...formGasto, monto: parseFloat(v) || 0 })}
+            type="number"
+            placeholder="0"
+          />
+          <Sel
+            label="Método Pago"
+            value={formGasto.metodoPago}
+            options={["Efectivo", "Transferencia", "Tarjeta", "Cheque"]}
+            onChange={(v) => setFormGasto({ ...formGasto, metodoPago: v })}
+          />
+          <Inp
+            label="Comprobante"
+            value={formGasto.comprobante}
+            onChange={(v) => setFormGasto({ ...formGasto, comprobante: v })}
+            placeholder="Número de recibo"
+          />
+          <Inp
+            label="Notas"
+            value={formGasto.notas}
+            onChange={(v) => setFormGasto({ ...formGasto, notas: v })}
+            placeholder="Detalles adicionales"
+          />
+          <Btn onClick={handleAddGasto}>✓ Registrar Gasto</Btn>
+        </Modal>
+      )}
+
+      {modal === "caja" && (
+        <Modal title="Cierre de Caja" onClose={() => setModal(null)}>
+          <Inp
+            label="Fecha"
+            value={formCaja.fecha}
+            onChange={(v) => setFormCaja({ ...formCaja, fecha: v })}
+            type="date"
+          />
+          <Inp
+            label="Apertura"
+            value={formCaja.apertura}
+            onChange={(v) => setFormCaja({ ...formCaja, apertura: parseFloat(v) || 0 })}
+            type="number"
+            placeholder="0"
+          />
+          <Inp
+            label="Observaciones"
+            value={formCaja.observaciones}
+            onChange={(v) => setFormCaja({ ...formCaja, observaciones: v })}
+            placeholder="Notas del cierre"
+          />
+          <Btn onClick={handleRegistrarCaja}>✓ Registrar Cierre</Btn>
         </Modal>
       )}
     </div>
