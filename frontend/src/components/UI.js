@@ -49,13 +49,14 @@ export function Inp({ label, value, onChange, type = "text", placeholder, full, 
   );
 }
 
-export function Sel({ label, value, onChange, opts, full }) {
+export function Sel({ label, value, onChange, opts, options, full }) {
+  const optsList = options || opts || [];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3, ...(full ? { gridColumn: "1/-1" } : {}) }}>
       {label && <label style={{ fontSize: 11, fontWeight: 700, color: G.gris3, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</label>}
-      <select value={value} onChange={e => onChange(e.target.value)}
+      <select value={value || ""} onChange={e => onChange(e.target.value)}
         style={{ padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${G.grisBorde}`, fontSize: 13, background: G.blanco, fontFamily: "inherit", color: G.texto }}>
-        {opts.map(o => <option key={typeof o === "object" ? o.v : o} value={typeof o === "object" ? o.v : o}>{typeof o === "object" ? o.l : o}</option>)}
+        {Array.isArray(optsList) && optsList.map(o => <option key={typeof o === "object" ? o.v : o} value={typeof o === "object" ? o.v : o}>{typeof o === "object" ? o.l : o}</option>)}
       </select>
     </div>
   );
@@ -98,34 +99,51 @@ export function Kpi({ label, value, icon, color = "#00c853", sub }) {
   );
 }
 
-export function SectionHdr({ title, subtitle, action }) {
+export function SectionHdr({ title, subtitle, action, actionLabel }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 18 }}>
       <div>
         <h2 style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.4px", color: G.texto }}>{title}</h2>
         {subtitle && <p style={{ fontSize: 13, color: G.gris3, marginTop: 3 }}>{subtitle}</p>}
       </div>
-      {action && <div style={{ display: "flex", gap: 8, alignItems: "center" }}>{action}</div>}
+      {action && <Btn onClick={action}>{actionLabel || "Agregar"}</Btn>}
     </div>
   );
 }
 
-export function DataTable({ cols, rows, empty = "Sin registros" }) {
+export function DataTable({ cols, rows, data, columns, empty = "Sin registros" }) {
+  // Soportar ambos formatos: (cols, rows) o (data, columns)
+  let finalCols = cols;
+  let finalRows = rows;
+
+  if (data && columns) {
+    finalCols = columns;
+    finalRows = (Array.isArray(data) ? data : []).map(item =>
+      columns.map(col => item[col])
+    );
+  }
+
+  // Validar que tenemos datos válidos
+  if (!finalCols || !Array.isArray(finalCols)) finalCols = [];
+  if (!finalRows || !Array.isArray(finalRows)) finalRows = [];
+
   return (
     <Card style={{ padding: 0, overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
           <thead>
             <tr style={{ background: G.grisClaro }}>
-              {cols.map(c => <th key={c} style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: G.gris3, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", borderBottom: `1px solid ${G.grisBorde}` }}>{c}</th>)}
+              {finalCols.map(c => <th key={c} style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: G.gris3, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", borderBottom: `1px solid ${G.grisBorde}` }}>{c}</th>)}
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0
-              ? <tr><td colSpan={cols.length} style={{ padding: 36, textAlign: "center", color: G.gris3 }}>{empty}</td></tr>
-              : rows.map((row, i) => (
+            {finalRows.length === 0
+              ? <tr><td colSpan={finalCols.length} style={{ padding: 36, textAlign: "center", color: G.gris3 }}>{empty}</td></tr>
+              : finalRows.map((row, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid ${G.grisBorde}`, background: i % 2 ? G.grisClaro : "#fff" }}>
-                  {row.map((cell, j) => <td key={j} style={{ padding: "10px 14px", verticalAlign: "middle" }}>{cell}</td>)}
+                  {Array.isArray(row) ? row.map((cell, j) => <td key={j} style={{ padding: "10px 14px", verticalAlign: "middle" }}>{cell}</td>)
+                    : finalCols.map(col => <td key={col} style={{ padding: "10px 14px", verticalAlign: "middle" }}>{row[col]}</td>)
+                  }
                 </tr>
               ))
             }
@@ -164,10 +182,17 @@ export function Spinner() {
 }
 
 export function Alert({ msg, type = "error", onClose }) {
-  const colors = { error: "#ef4444", success: "#00c853", warn: "#f97316" };
+  const colors = { error: "#ef4444", ok: "#00c853", success: "#00c853", warn: "#f97316" };
+  const color = colors[type] || colors.error;
+  
+  React.useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
   return (
-    <div style={{ position: "fixed", top: 20, right: 20, zIndex: 999, background: G.blanco, border: `2px solid ${colors[type]}`, borderRadius: 12, padding: "14px 20px", boxShadow: "0 8px 30px rgba(0,0,0,0.12)", display: "flex", gap: 10, alignItems: "center", minWidth: 280, maxWidth: 400 }}>
-      <span style={{ color: colors[type], fontWeight: 700, fontSize: 13, flex: 1 }}>{msg}</span>
+    <div style={{ position: "fixed", top: 20, right: 20, zIndex: 999, background: G.blanco, border: `2px solid ${color}`, borderRadius: 12, padding: "14px 20px", boxShadow: "0 8px 30px rgba(0,0,0,0.12)", display: "flex", gap: 10, alignItems: "center", minWidth: 280, maxWidth: 400 }}>
+      <span style={{ color, fontWeight: 700, fontSize: 13, flex: 1 }}>{msg}</span>
       <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: G.gris3, fontSize: 16 }}>✕</button>
     </div>
   );

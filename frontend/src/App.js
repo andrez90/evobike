@@ -85,32 +85,33 @@ export default function App() {
     try {
       setLoading(true);
       const [inv, camps, leadsData, clients, ventasData, entregasData, serviciosData, ingresosData, gastosData, distribuidoresData, sucursalesData] = await Promise.all([
-        api.getInventario(),
-        api.getCampaigns(),
-        api.getLeads(),
-        api.getClientes(),
-        api.getVentas(),
-        api.getEntregas(),
-        api.getServicios(),
-        api.getIngresosInventario(),
-        api.getGastos(),
-        api.getDistribuidores(),
-        api.getSucursales(),
+        api.getInventario().catch(() => []),
+        api.getCampaigns().catch(() => []),
+        api.getLeads().catch(() => []),
+        api.getClientes().catch(() => []),
+        api.getVentas().catch(() => []),
+        api.getEntregas().catch(() => []),
+        api.getServicios().catch(() => []),
+        api.getIngresosInventario().catch(() => []),
+        api.getGastos().catch(() => []),
+        api.getDistribuidores().catch(() => []),
+        api.getSucursales().catch(() => []),
       ]);
 
-      setInventario(inv);
-      setCampaigns(camps);
-      setLeads(leadsData);
-      setClientes(clients);
-      setVentas(ventasData);
-      setEntregas(entregasData);
-      setServicios(serviciosData);
-      setIngresos(ingresosData);
-      setGastos(gastosData);
-      setDistribuidores(distribuidoresData);
-      setSucursales(sucursalesData);
+      setInventario(Array.isArray(inv) ? inv : []);
+      setCampaigns(Array.isArray(camps) ? camps : []);
+      setLeads(Array.isArray(leadsData) ? leadsData : []);
+      setClientes(Array.isArray(clients) ? clients : []);
+      setVentas(Array.isArray(ventasData) ? ventasData : []);
+      setEntregas(Array.isArray(entregasData) ? entregasData : []);
+      setServicios(Array.isArray(serviciosData) ? serviciosData : []);
+      setIngresos(Array.isArray(ingresosData) ? ingresosData : []);
+      setGastos(Array.isArray(gastosData) ? gastosData : []);
+      setDistribuidores(Array.isArray(distribuidoresData) ? distribuidoresData : []);
+      setSucursales(Array.isArray(sucursalesData) ? sucursalesData : []);
     } catch (err) {
-      setAlert({ type: "error", msg: err.message });
+      console.error("Error cargando datos:", err);
+      setAlert({ type: "error", msg: "Error al cargar datos: " + err.message });
     } finally {
       setLoading(false);
     }
