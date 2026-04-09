@@ -9,15 +9,16 @@ const COLORS = {
   baja: "#10b981",
 };
 
-export default function LeadsPanel({ leads, onRefresh, theme }) {
+export default function LeadsPanel({ leads, onRefresh, theme, campaigns = [] }) {
   const [draggedLead, setDraggedLead] = useState(null);
-  const [filtros, setFiltros] = useState({ estado: "", prioridad: "", red: "" });
+  const [filtros, setFiltros] = useState({ estado: "", prioridad: "", red: "", campana: "" });
   const [editingLead, setEditingLead] = useState(null);
 
   const leadsFiltrados = leads.filter((lead) => {
     if (filtros.estado && lead.estado !== filtros.estado) return false;
     if (filtros.prioridad && lead.prioridad !== filtros.prioridad) return false;
     if (filtros.red && lead.red !== filtros.red) return false;
+    if (filtros.campana && lead.campana !== filtros.campana) return false;
     return true;
   });
 
@@ -43,7 +44,8 @@ export default function LeadsPanel({ leads, onRefresh, theme }) {
       setDraggedLead(null);
       onRefresh();
     } catch (err) {
-      alert("Error: " + err.message);
+      console.error("Error al actualizar estado:", err);
+      alert("Error al cambiar estado: " + err.message);
     }
   };
 
@@ -52,17 +54,20 @@ export default function LeadsPanel({ leads, onRefresh, theme }) {
       await api.updateLeadPrioridad(leadId, nuevaPrioridad);
       onRefresh();
     } catch (err) {
-      alert("Error: " + err.message);
+      console.error("Error al actualizar prioridad:", err);
+      alert("Error al cambiar prioridad: " + err.message);
     }
   };
 
   const handleDeleteLead = async (leadId) => {
-    if (!window.confirm("¿Eliminar este lead?")) return;
+    if (!window.confirm("¿Eliminar este lead? Esta acción no se puede deshacer.")) return;
     try {
       await api.deleteLead(leadId);
       onRefresh();
+      alert("Lead eliminado correctamente");
     } catch (err) {
-      alert("Error: " + err.message);
+      console.error("Error al eliminar lead:", err);
+      alert("Error al eliminar: " + err.message);
     }
   };
 
@@ -96,8 +101,21 @@ export default function LeadsPanel({ leads, onRefresh, theme }) {
           ))}
         </select>
 
+        <select
+          value={filtros.campana}
+          onChange={(e) => setFiltros({ ...filtros, campana: e.target.value })}
+          style={styles.filterSelect}
+        >
+          <option value="">Todas las campañas</option>
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.nombre}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+
         <button
-          onClick={() => setFiltros({ estado: "", prioridad: "", red: "" })}
+          onClick={() => setFiltros({ estado: "", prioridad: "", red: "", campana: "" })}
           style={styles.clearButton}
         >
           Limpiar filtros
@@ -168,9 +186,19 @@ export default function LeadsPanel({ leads, onRefresh, theme }) {
                         <strong>🌐</strong> {lead.red}
                       </p>
                     )}
+                    {lead.campana && (
+                      <p style={styles.infoRow}>
+                        <strong>📢</strong> {lead.campana}
+                      </p>
+                    )}
+                    {lead.tipo && (
+                      <p style={styles.infoRow}>
+                        <strong>📋</strong> {lead.tipo}
+                      </p>
+                    )}
                     {lead.consulta && (
                       <p style={styles.infoRow}>
-                        <strong>💬</strong> {lead.consulta.substring(0, 50)}...
+                        <strong>💬</strong> {lead.consulta.substring(0, 40)}...
                       </p>
                     )}
                   </div>

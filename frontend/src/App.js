@@ -16,6 +16,7 @@ const DEFAULT_THEME = {
 const NAV = [
   { key: "dashboard", icon: "▦", label: "Dashboard" },
   { key: "leads", icon: "💬", label: "Leads RRSS" },
+  { key: "campaigns", icon: "📢", label: "Campañas" },
   { key: "ventas", icon: "💰", label: "Ventas" },
   { key: "entregas", icon: "🚚", label: "Entregas" },
   { key: "inventario", icon: "📦", label: "Inventario" },
@@ -59,8 +60,10 @@ export default function App() {
   // Forms
   const [formLead, setFormLead] = useState({
     nombre: "", telefono: "", email: "", red: "Directo", consulta: "",
-    estado: "Nuevo", prioridad: "media", notas: "", tipo: "cliente",
+    estado: "Nuevo", prioridad: "media", notas: "", tipo: "cliente", campana: "", tipoGestion: "Consulta",
   });
+
+  const [formCampaign, setFormCampaign] = useState({ nombre: "" });
 
   const [formVenta, setFormVenta] = useState({
     clienteNombre: "", clienteTel: "", clienteDoc: "", ciudad: "", metodoPago: "Efectivo",
@@ -134,17 +137,46 @@ export default function App() {
     try {
       await api.addLead({
         ...formLead,
+        tipo: formLead.tipoGestion,
         fecha: new Date().toISOString().split("T")[0],
       });
       setFormLead({
         nombre: "", telefono: "", email: "", red: "Directo", consulta: "",
-        estado: "Nuevo", prioridad: "media", notas: "", tipo: "cliente",
+        estado: "Nuevo", prioridad: "media", notas: "", tipo: "cliente", campana: "", tipoGestion: "Consulta",
       });
       setModal(null);
       loadData();
-      setAlert({ type: "ok", msg: "Lead agregado" });
+      setAlert({ type: "ok", msg: "Lead agregado correctamente" });
     } catch (err) {
-      setAlert({ type: "error", msg: err.message });
+      setAlert({ type: "error", msg: "Error al agregar lead: " + err.message });
+    }
+  };
+
+  // Campaigns
+  const handleAddCampaign = async () => {
+    if (!formCampaign.nombre.trim()) {
+      setAlert({ type: "warn", msg: "Nombre de campaña requerido" });
+      return;
+    }
+    try {
+      await api.addCampaign(formCampaign.nombre);
+      setFormCampaign({ nombre: "" });
+      setModal(null);
+      loadData();
+      setAlert({ type: "ok", msg: "Campaña agregada" });
+    } catch (err) {
+      setAlert({ type: "error", msg: "Error al agregar campaña: " + err.message });
+    }
+  };
+
+  const handleDeleteCampaign = async (id) => {
+    if (!window.confirm("¿Eliminar esta campaña?")) return;
+    try {
+      await api.deleteCampaign(id);
+      loadData();
+      setAlert({ type: "ok", msg: "Campaña eliminada" });
+    } catch (err) {
+      setAlert({ type: "error", msg: "Error al eliminar: " + err.message });
     }
   };
 
@@ -268,7 +300,32 @@ export default function App() {
           {tab === "leads" && (
             <div>
               <SectionHdr title="💬 Panel de Leads" action={() => setModal("lead")} actionLabel="+ Nuevo Lead" />
-              <LeadsPanel leads={leads} onRefresh={loadData} theme={theme} />
+              <LeadsPanel leads={leads} onRefresh={loadData} theme={theme} campaigns={campaigns} />
+            </div>
+          )}
+
+          {/* Campaigns */}
+          {tab === "campaigns" && (
+            <div>
+              <SectionHdr title="📢 Campañas Publicitarias" action={() => setModal("campaign")} actionLabel="+ Nueva Campaña" />
+              <Grid cols={3} gap={15}>
+                {campaigns.map((camp) => (
+                  <Card key={camp.id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <h3 style={{ margin: "0 0 10px 0", fontSize: "16px", fontWeight: "600" }}>{camp.nombre}</h3>
+                        <p style={{ margin: "0", fontSize: "12px", color: "#666" }}>ID: {camp.id}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteCampaign(camp.id)}
+                        style={{ background: "#ef4444", color: "white", border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontSize: "12px" }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </Card>
+                ))}
+              </Grid>
             </div>
           )}
 
@@ -379,30 +436,53 @@ export default function App() {
       {modal === "lead" && (
         <Modal title="Nuevo Lead" onClose={() => setModal(null)}>
           <Inp
-            label="Nombre"
+            label="Nombre *"
             value={formLead.nombre}
             onChange={(v) => setFormLead({ ...formLead, nombre: v })}
+            placeholder="Nombre del cliente"
           />
           <Inp
-            label="Teléfono"
+            label="Teléfono *"
             value={formLead.telefono}
             onChange={(v) => setFormLead({ ...formLead, telefono: v })}
+            placeholder="Ej: 3001234567"
           />
           <Inp
             label="Email"
             value={formLead.email}
             onChange={(v) => setFormLead({ ...formLead, email: v })}
+            placeholder="correo@example.com"
           />
           <Sel
-            label="Red Social"
+            label="Red Social/Origen"
             value={formLead.red}
             options={REDES}
             onChange={(v) => setFormLead({ ...formLead, red: v })}
           />
+          <Sel
+            label="Campaña Publicitaria"
+            value={formLead.campana}
+            options={["", ...campaigns.map(c => c.nombre)]}
+            onChange={(v) => setFormLead({ ...formLead, campana: v })}
+          />
+          <Sel
+            label="Tipo de Gestión"
+            value={formLead.tipoGestion}
+            options={["Consulta", "Cotización", "Venta", "Seguimiento", "Cerrado"]}
+            onChange={(v) => setFormLead({ ...formLead, tipoGestion: v })}
+          />
           <Inp
-            label="Consulta"
+            label="Consulta/Comentarios"
             value={formLead.consulta}
             onChange={(v) => setFormLead({ ...formLead, consulta: v })}
+            placeholder="¿Qué quiere el cliente?"
+            multiline
+          />
+          <Inp
+            label="Notas Internas"
+            value={formLead.notas}
+            onChange={(v) => setFormLead({ ...formLead, notas: v })}
+            placeholder="Notas adicionales"
             multiline
           />
           <Sel
@@ -411,7 +491,19 @@ export default function App() {
             options={["baja", "media", "alta"]}
             onChange={(v) => setFormLead({ ...formLead, prioridad: v })}
           />
-          <Btn onClick={handleAddLead}>Agregar Lead</Btn>
+          <Btn onClick={handleAddLead}>✓ Agregar Lead</Btn>
+        </Modal>
+      )}
+
+      {modal === "campaign" && (
+        <Modal title="Nueva Campaña Publicitaria" onClose={() => setModal(null)}>
+          <Inp
+            label="Nombre de Campaña *"
+            value={formCampaign.nombre}
+            onChange={(v) => setFormCampaign({ ...formCampaign, nombre: v })}
+            placeholder="Ej: Black Friday 2025, Liquidación Marzo, etc."
+          />
+          <Btn onClick={handleAddCampaign}>✓ Crear Campaña</Btn>
         </Modal>
       )}
 
